@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Velocimeter</title>
+  </head>
+  
+  <body>
+    <style type="text/css">
+      #acquiring-message {
+          animation-duration: 1s;
+          animation-name: acquiring;
+          animation-iteration-count: infinite;
+          animation-direction: alternate;
+      }
+      
+      @keyframes acquiring {
+          from {
+              opacity: 0;
+          }
+          to {
+              opacity: 1;
+          }
+      }
+    </style>
+    
+    <p id="acquiring-message">acquiring signal (accuracy <span id="acquisition-accuracy"></span> m)</p>
+    
+    <table id="output-table">
+      <tbody>
+        <tr><td colspan="4" id="currentTime"></td><td colspan="3" id="elapsedTime"></td><td id="distanceTravelled"></td></tr>
+        <tr><td colspan="2" id="instantaneousSpeed"><td colspan="2" id="averageSpeed"></td><td colspan="2" id="averageMovingSpeed"></td><td colspan="2" id="acceleration"></td></tr>
+        <tr><td colspan="4" id="numericHeading"></td><td colspan="4" id="stringHeading"></tr>
+        <tr><td colspan="2" id="latitude"></td><td colspan="2" id="longitude"></td><td  colspan="2"id="aslAltitude"></td><td id="instantaneousAltitude"></td><td id="cumulativeAltitude"></td></tr>
+        <tr><td colspan="4" id="accuracy"></td><td colspan="4" id="altitudeAccuracy"></td></tr>
+      </tbody>
+    </table>
+    
+    <input type="number" step="0.0000001" placeholder="latitude" id="destination-latitude"></input>
+    <input type="number" step="0.0000001" placeholder="longitude" id="destination-longitude"></input>
+
+    <script type="text/javascript">
+      Xf1d0 = {};
+
+      Xf1d0.Velocimeter = {
+        Constants: {
+          M_TO_MI: 0.00062137119,
+          MPS_TO_MPH: 2.236936292,
+          MS_TO_HOURS: 3600000,
+          EARTH_CIRCUMFERENCE_METERS: 40.075e6,
+          HEADINGS: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        }
+      };
+      Xf1d0.Velocimeter.Constants.COMPASS_OFFSET = 360 / Xf1d0.Velocimeter.Constants.HEADINGS.length;
+
+      Xf1d0.Velocimeter.Constants.FIELDS = [
+        'currentTime',
+        'elapsedTime',
+        'distanceTravelled',
+        'instantaneousSpeed',
+        'averageSpeed',
+        'averageMovingSpeed',
+        'acceleration',
+        'numericHeading',
+        'stringHeading',
+        'latitude',
+        'longitude',
+        'aslAltitude',
+        'instantaneousAltitude',
+        'cumulativeAltitude',
+        'accuracy',
+        'altitudeAccuracy'
+      ];
+
+      Xf1d0.Velocimeter.Constants.FUNCTIONS = [
+        function() {
+          return Xf1d0.Velocimeter.Util
+            .formatTime(Xf1d0.Velocimeter.currentPosition.timestamp);
+        },
+
+        function() {
+          var timestamp = new Date(Xf1d0.Velocimeter.currentPosition.timestamp - Xf1d0.Velocimeter.startTime);
+
+          return Xf1d0.Velocimeter.Util.formatTime(timestamp);
+        },
+
+        function() {
+          return (Xf1d0.Velocimeter.Constants.M_TO_MI * Xf1d0.Velocimeter.distance).toFixed(2) + " mi";
+        },
+
+        function() {
+          return (Xf1d0.Velocimeter.Constants.MPS_TO_MPH * Xf1d0.Velocimeter.currentPosition.speed).toFixed(2) + " mph";
+        },
+
+        function() {
+          var duration = (Xf1d0.Velocimeter.currentPosition.timestamp - Xf1d0.Velocimeter.startTime) / 1000; //ms ↦ s
+
+          return (Xf1d0.Velocimeter.Constants.MPS_TO_MPH * Xf1d0.Velocimeter.distance / duration).toFixed(2) + "〈mph〉";
+        },
+
+        function() {
+          return ((Xf1d0.Velocimeter.Constants.M_TO_MI * Xf1d0.Velocimeter.distance) /
+                  (Xf1d0.Velocimeter.movingTime / Xf1d0.Velocimeter.Constants.MS_TO_HOURS)
+                 ).toFixed(2) + "〈ṁph〉";
+        },
+
+        function() {
+          //(Xf1d0.Velocimeter.currentPosition.speed - Xf1d0.Velocimeter.previousPosition.speed) / …
+          return
+          ['speed', 'time'].map(function(dimension) {
+            return ['current', 'previous'].map(function(position){
+              return Xf1d0.Velocimeter[position + 'Position'][dimension]; }).reduce(function(p,n){ return p - n; });
+          }).reduce(function(p,n) { return p/n; }) + "m/s²";
+        },
+
+        function() {
+          return Math.round(Xf1d0.Velocimeter.currentPosition.heading) + '°';
+        },
+
+        function() {
+          var index =
+              Math.floor((Xf1d0.Velocimeter.currentPosition.heading / Xf1d0.Velocimeter.Constants.COMPASS_OFFSET) + 0.5);
+          index %= 8;//mod to handle heading >= (360 - COMPASS_OFFSET/2)
+
+          return Xf1d0.Velocimeter.Constants.HEADINGS[index];
+        },
+
+        function() {
+          return Xf1d0.Velocimeter.currentPosition.latitude.toFixed(4);
+        },
+
+        function() {
+          return Xf1d0.Velocimeter.currentPosition.longitude.toFixed(4);
+        },
+
+        function() {
+          return Xf1d0.Velocimeter.currentPosition.altitude + 'm ASL';
+        },
+
+        function() {
+          return Xf1d0.Velocimeter.Util.positionDiff('altitude') + ' Δh (m)';
+        },
+
+        function() {
+          return (Xf1d0.Velocimeter.currentPosition.altitude - Xf1d0.Velocimeter.startAltitude) + ' Σh (m)';
+        },
+
+        function() {
+          return Xf1d0.Velocimeter.currentPosition.accuracy;
+        },
+
+        function() {
+          return Xf1d0.Velocimeter.currentPosition.altitudeAccuracy;
+        }
+      ];
+
+      Xf1d0.Velocimeter.Util = {
+        elapsedTimeArray: function(timestamp) {
+          var d = new Date(timestamp);
+          return ['Hours','Minutes', 'Seconds'].map(function(e){ return d['getUTC' + e](); });
+        },
+
+        zeroPad: function(number) {
+          var digitString = number.toString();
+
+          return digitString.length < 2 ? '0' + digitString : digitString;
+        },
+
+        formatTime: function(timestamp) {
+          return Xf1d0.Velocimeter.Util.elapsedTimeArray(timestamp).map(function(e){
+            return Xf1d0.Velocimeter.Util.zeroPad(e); })
+            .join(':');
+        },
+
+        positionDiff: function(datum) {
+          return ['current','previous']
+            .map(function(position) {return Xf1d0.Velocimeter[position + 'Position'][datum]; })
+            .reduce(function(p,n) { return p - n; });
+        },
+
+        distance: function() {
+          var Δt = Xf1d0.Velocimeter.Util.positionDiff('timestamp') / 1000; //ms ↦ s
+
+          if(Xf1d0.Velocimeter.currentPosition.speed && Δt < 2) return Xf1d0.Velocimeter.currentPosition.speed * Δt;
+
+          var coördinatesΔ =
+              ['latitude','longitude'].map(function(coörd) { return Xf1d0.Velocimeter.Util.positionDiff(coörd); });
+          
+          var insignificantDisplacement =
+              coördinatesΔ.map(function(Δ) { return  Δ < 1e-5; }).reduce(function(p,n) { return p && n; });
+
+          if(insignificantDisplacement) return 0;
+
+          var arcθ =
+              Math.sqrt(
+                coördinatesΔ.map(function(Δ) { return Math.pow(Δ, 2); })
+                  .reduce(function(p,n) { return p + n; })
+              );
+
+          return arcθ * Xf1d0.Velocimeter.Constants.EARTH_CIRCUMFERENCE_METERS / 360 ;
+        },
+
+        arrayThresholdCheck: function(array, threshold) {
+          return array.map(function(a){ return a < threshold; }).reduce(function(p,n){ return p && n; });
+        }
+      };
+
+      Xf1d0.Velocimeter.Geolocator = {
+        positionHistory: [],
+
+        init: function() {
+          Xf1d0.Velocimeter.Geolocator.Initializer.destinationPopulator();
+          
+          Xf1d0.Velocimeter.Geolocator.Initializer.watchId =
+            navigator.geolocation.watchPosition(Xf1d0.Velocimeter.Geolocator.Initializer.success,
+                                                Xf1d0.Velocimeter.Geolocator.Updater.watchPositionFail,
+                                                {enableHighAccuracy: true});
+        },
+
+        Initializer: {
+          accuracyTrend: [],
+          
+          destinationPopulator: function() {
+            if(!window.location.search) return;
+            
+            window.location.search.substring(1)
+              .split('&')
+              .map(function(kv){return kv.split('=');})
+              .map(function(p) {
+                if(parseFloat(p[1])) document.getElementById('destination-' + p[0]).value = p[1];
+              });
+          },
+          
+          success: function(position) {
+            var accuracy = position.coords.accuracy;
+            Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.push(accuracy);
+            $('#acquisition-accuracy').text(accuracy);
+
+            if(Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.length > 5 &&
+               Xf1d0.Velocimeter.Util.arrayThresholdCheck(Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.slice(-5), 100)) {
+              Xf1d0.Velocimeter.Geolocator.Initializer.initializePosition(position);
+
+              $('#acquiring-message').hide();
+
+              navigator.geolocation.clearWatch(Xf1d0.Velocimeter.Geolocator.Initializer.watchId);
+
+              Xf1d0.Velocimeter.Geolocator.Updater.watchId =
+                navigator.geolocation.watchPosition(Xf1d0.Velocimeter.Geolocator.Updater.watchPositionSuccess,
+                                                    Xf1d0.Velocimeter.Geolocator.Updater.watchPositionFail,
+                                                    {enableHighAccuracy: true});
+            }
+          },
+
+          initializePosition: function(position) {
+            Xf1d0.Velocimeter.Geolocator.positionHistory.push(Xf1d0.Velocimeter.Geolocator.Updater.extractData(position));
+            Xf1d0.Velocimeter.startTime = position.timestamp;
+            Xf1d0.Velocimeter.distance = 0;
+            Xf1d0.Velocimeter.movingTime = 0;
+            Xf1d0.Velocimeter.startAltitude = position.coords.altitude;
+          }
+        },
+
+        Updater: {
+          watchPositionSuccess: function(position) {
+            var positionData = Xf1d0.Velocimeter.Geolocator.Updater.extractData(position);
+
+            var previousIndex = Xf1d0.Velocimeter.Geolocator.positionHistory.push(positionData) - 2;
+            var previousPosition = Xf1d0.Velocimeter.Geolocator.positionHistory[previousIndex];
+
+            Xf1d0.Velocimeter.currentPosition = positionData;
+            Xf1d0.Velocimeter.previousPosition = previousPosition;
+
+            var distanceΔ = Xf1d0.Velocimeter.Util.distance();
+            Xf1d0.Velocimeter.distance += distanceΔ ? distanceΔ : 0;
+
+            var timeΔ = Xf1d0.Velocimeter.Util.positionDiff('timestamp');
+            Xf1d0.Velocimeter.movingTime +=
+              (positionData.speed > 0 && previousPosition.speed > 0) ? timeΔ : 0;
+
+
+            var results =
+                Xf1d0.Velocimeter.Constants.FUNCTIONS
+                .map(function(f) {try{return f.call(Xf1d0.Velocimeter.Constants.FUNCTIONS);}catch(e){document.getElementById("note_content").innerHTML += `<p>${e} ${e.message} ${JSON.stringify(e)}</p>`;}});
+
+            results =
+              Xf1d0.Velocimeter.Constants.FIELDS.map(function(e,i) { $('#' + e).text(results[i]); return [e, results[i]]; });
+
+            $('#gps').val( JSON.stringify(Xf1d0.Velocimeter.Geolocator.positionHistory) );
+
+            var destination = Xf1d0.Velocimeter.Destination.getDestination();
+            
+            Xf1d0.Velocimeter.Destination.destinationProximityCheck.call(Xf1d0.Velocimeter.Destination,
+                                                                         Xf1d0.Velocimeter.currentPosition,
+                                                                         destination);
+          },
+
+          extractData: function(position) {
+            var data = {
+              timestamp: position.timestamp
+            };
+
+            for(k in position.coords) data[k] = position.coords[k];
+
+            return data;
+          },
+
+          watchPositionFail: function(positionError) {alert(`${positionError.code}: ${positionError.message}`);}
+        }
+      };
+
+      Xf1d0.Velocimeter.Destination = {
+        TIME_THRESHOLD: 60000, //1 minute
+        ANGULAR_DISTANCE_THRESHOLD: 0.001,
+
+        loopCount: 0,
+
+        angularDistance: function(position, destination){
+          return ['latitude','longitude'].map(function(coordinate){ return Math.abs(position[coordinate] - destination[coordinate]); })
+        },
+
+        proximityIsSufficient: function(position, destination) {
+          return Xf1d0.Velocimeter.Util.arrayThresholdCheck(Xf1d0.Velocimeter.Destination.angularDistance(position, destination),
+                                                            Xf1d0.Velocimeter.Destination.ANGULAR_DISTANCE_THRESHOLD);
+        },
+
+        autoSaveSuccess: function() {
+          $('#acquiring-message').text('Destination Reached; Auto-Uploaded Data');
+        },
+
+        autoSave: function() {
+          var destination = Xf1d0.Velocimeter.Destination.getDestination();
+          var lastPositions = ['current','previous'].map(k => Xf1d0.Velocimeter[`${k}Position`]);
+
+          if(lastPositions.
+             every(p => Xf1d0.Velocimeter.Destination.
+                   proximityIsSufficient(p, destination))) {
+            var form = document.querySelector('form');
+            var formData = new FormData(form);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', form.getAttribute('action'));
+            xhr.onload = Xf1d0.Velocimeter.Destination.autoSaveSuccess;
+            xhr.onerror = function(){ alert("Couldn't autosave; try using button") };
+            xhr.send(formData);
+
+            navigator.geolocation.clearWatch(Xf1d0.Velocimeter.Geolocator.Updater.watchId);
+          }
+          else {
+            Xf1d0.Velocimeter.Destination.loopCount++;
+
+            delete Xf1d0.Velocimeter.Destination.autoSaveTimeout;
+
+            $('#acquiring-message').text(`loop count: ${Xf1d0.Velocimeter.Destination.loopCount}`);
+          }
+        },
+
+        destinationProximityCheck: function(position, destination, timestamp)  {
+          if(Xf1d0.Velocimeter.Destination.proximityIsSufficient(position, destination)
+             && (Xf1d0.Velocimeter.Constants.M_TO_MI * Xf1d0.Velocimeter.distance) > 0.5
+             && !Xf1d0.Velocimeter.Destination.autoSaveTimeout) {
+            Xf1d0.Velocimeter.Destination.autoSaveTimeout =
+              setTimeout(Xf1d0.Velocimeter.Destination.autoSave,
+                         Xf1d0.Velocimeter.Destination.TIME_THRESHOLD);
+
+            var message = $('#acquiring-message');
+            message.text('within threshold; autosaving @ ' +
+                         Xf1d0.Velocimeter.Util.elapsedTimeArray(new Date(new Date().valueOf() + Xf1d0.Velocimeter.Destination.TIME_THRESHOLD))
+                         .slice(1,3).join(':'));
+            message.show();
+          }
+        },
+
+        getDestination: function() {
+          return ['latitude', 'longitude'].map(
+            function(c){
+              return [c, parseFloat(document.getElementById('destination-' + c).value)];
+            }).reduce(
+              function(p,n){ p[n[0]] = n[1]; return p; },
+              {});
+        }
+      };
+    </script>
+
+    <script type="text/javascript">
+      function domContentLoadedVelocimeterInit() {
+        try {
+          Xf1d0.Velocimeter.Geolocator.init();
+        } catch(e){
+          document.getElementById('acquiring-message').textContent = e.message;
+        }
+      }
+      
+      document.addEventListener('DOMContentLoaded', domContentLoadedVelocimeterInit);
+    </script>
+  </body>
+</html>
