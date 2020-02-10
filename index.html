@@ -40,7 +40,7 @@
 
     <table id="output-table">
       <tbody>
-        <tr><td colspan="4" id="currentTime"></td><td colspan="3" id="elapsedTime"></td><td id="distanceTravelled"></td></tr>
+        <tr><td colspan="3" id="currentTime"></td><td colspan="3" id="elapsedTime"></td><td id="updatePeriod"></td><td id="distanceTraveled"></td></tr>
         <tr><td colspan="2" id="instantaneousSpeed"><td colspan="2" id="averageSpeed"></td><td colspan="2" id="averageMovingSpeed"></td><td colspan="2" id="acceleration"></td></tr>
         <tr><td colspan="4" id="numericHeading"></td><td colspan="4" id="stringHeading"></tr>
         <tr><td colspan="2" id="latitude"></td><td colspan="2" id="longitude"></td><td  colspan="2"id="aslAltitude"></td><td id="instantaneousAltitude"></td><td id="cumulativeAltitude"></td></tr>
@@ -66,7 +66,8 @@
       Xf1d0.Velocimeter.Constants.FIELDS = [
         'currentTime',
         'elapsedTime',
-        'distanceTravelled',
+        'updatePeriod',
+        'distanceTraveled',
         'instantaneousSpeed',
         'averageSpeed',
         'averageMovingSpeed',
@@ -92,6 +93,10 @@
           var timestamp = new Date(Xf1d0.Velocimeter.currentPosition.timestamp - Xf1d0.Velocimeter.startTime);
 
           return Xf1d0.Velocimeter.Util.formatTime(timestamp);
+        },
+
+        function() {
+          return `${Xf1d0.Velocimeter.Util.positionDiff('timestamp')/1000} s`;
         },
 
         function() {
