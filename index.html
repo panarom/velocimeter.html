@@ -116,10 +116,7 @@
 
         function() {
           //(Xf1d0.Velocimeter.currentPosition.speed - Xf1d0.Velocimeter.previousPosition.speed) / …
-          return ['speed', 'time'].map(function(dimension) {
-            return ['current', 'previous'].map(function(position){
-              return Xf1d0.Velocimeter[position + 'Position'][dimension]; }).reduce(function(p,n){ return p - n; });
-          }).reduce(function(p,n) { return p/n; }) + "m/s²";
+          return `${Xf1d0.Velocimeter.Util.positionDiff('speed') / Xf1d0.Velocimeter.Util.positionDiff('time')} m/s²`;
         },
 
         function() {
