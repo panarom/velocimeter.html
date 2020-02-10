@@ -140,23 +140,23 @@
         },
 
         function() {
-          return Xf1d0.Velocimeter.currentPosition.altitude + 'm ASL';
+          return Xf1d0.Velocimeter.currentPosition.altitude.toFixed(2) + 'm ASL';
         },
 
         function() {
-          return Xf1d0.Velocimeter.Util.positionDiff('altitude') + ' Δh (m)';
+          return Xf1d0.Velocimeter.Util.positionDiff('altitude').toFixed(2) + ' Δh (m)';
         },
 
         function() {
-          return (Xf1d0.Velocimeter.currentPosition.altitude - Xf1d0.Velocimeter.startAltitude) + ' Σh (m)';
+          return (Xf1d0.Velocimeter.currentPosition.altitude - Xf1d0.Velocimeter.startAltitude).toFixed(2) + ' Σh (m)';
         },
 
         function() {
-          return Xf1d0.Velocimeter.currentPosition.accuracy;
+          return Xf1d0.Velocimeter.currentPosition.accuracy.toFixed(2) + ' ε m';
         },
 
         function() {
-          return Xf1d0.Velocimeter.currentPosition.altitudeAccuracy;
+          return Xf1d0.Velocimeter.currentPosition.altitudeAccuracy + ' Δh ε (m)';
         }
       ];
 
