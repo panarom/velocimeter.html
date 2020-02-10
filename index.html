@@ -210,7 +210,7 @@
         },
 
         arrayThresholdCheck: function(array, threshold) {
-          return array.map(function(a){ return a < threshold; }).reduce(function(p,n){ return p && n; });
+          return array.every(a => Xf1d0.debug(`${a} < ${threshold}`) || a < threshold);
         }
       };
 
