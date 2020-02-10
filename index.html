@@ -267,6 +267,7 @@
 
           initializePosition: function(position) {
             Xf1d0.debug('initializePosition');
+            document.getElementById('debug').remove();
             Xf1d0.Velocimeter.Geolocator.positionHistory.push(Xf1d0.Velocimeter.Geolocator.Updater.extractData(position));
             Xf1d0.Velocimeter.startTime = position.timestamp;
             Xf1d0.Velocimeter.distance = 0;
