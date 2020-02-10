@@ -25,7 +25,19 @@
     </style>
     
     <p id="acquiring-message">acquiring signal (accuracy <span id="acquisition-accuracy"></span> m)</p>
-    
+    <ol id="debug">
+    </ol>
+    <script type="text/javascript">
+      Xf1d0 = {};
+
+      Xf1d0.debug = function(message) {
+        var item = document.createElement('li');
+        item.innerText = message;
+
+        document.getElementById('debug').appendChild(item);
+      };
+    </script>
+
     <table id="output-table">
       <tbody>
         <tr><td colspan="4" id="currentTime"></td><td colspan="3" id="elapsedTime"></td><td id="distanceTravelled"></td></tr>
@@ -40,8 +52,6 @@
     <input type="number" step="0.0000001" placeholder="longitude" id="destination-longitude"></input>
 
     <script type="text/javascript">
-      Xf1d0 = {};
-
       Xf1d0.Velocimeter = {
         Constants: {
           M_TO_MI: 0.00062137119,
@@ -106,8 +116,7 @@
 
         function() {
           //(Xf1d0.Velocimeter.currentPosition.speed - Xf1d0.Velocimeter.previousPosition.speed) / …
-          return
-          ['speed', 'time'].map(function(dimension) {
+          return ['speed', 'time'].map(function(dimension) {
             return ['current', 'previous'].map(function(position){
               return Xf1d0.Velocimeter[position + 'Position'][dimension]; }).reduce(function(p,n){ return p - n; });
           }).reduce(function(p,n) { return p/n; }) + "m/s²";
@@ -209,12 +218,14 @@
         positionHistory: [],
 
         init: function() {
+          Xf1d0.debug('Xf1d0.Velocimeter.Geolocator.init');
           Xf1d0.Velocimeter.Geolocator.Initializer.destinationPopulator();
-          
-          Xf1d0.Velocimeter.Geolocator.Initializer.watchId =
+          Xf1d0.debug("destinationPopulator (should've done nothing)");
+          var watchId = Xf1d0.Velocimeter.Geolocator.Initializer.watchId =
             navigator.geolocation.watchPosition(Xf1d0.Velocimeter.Geolocator.Initializer.success,
                                                 Xf1d0.Velocimeter.Geolocator.Updater.watchPositionFail,
                                                 {enableHighAccuracy: true});
+          Xf1d0.debug('watchID = ' + watchId);
         },
 
         Initializer: {
@@ -232,6 +243,7 @@
           },
           
           success: function(position) {
+            Xf1d0.debug('Xf1d0.Velocimeter.Geolocator.Initializer.success');
             var accuracy = position.coords.accuracy;
             Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.push(accuracy);
             $('#acquisition-accuracy').text(accuracy);
@@ -304,7 +316,7 @@
             return data;
           },
 
-          watchPositionFail: function(positionError) {alert(`${positionError.code}: ${positionError.message}`);}
+          watchPositionFail: function(positionError) {alert(`watchPositionFail: ${positionError.code}—${positionError.message}`);}
         }
       };
 
