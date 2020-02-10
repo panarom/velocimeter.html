@@ -368,7 +368,7 @@
 
             delete Xf1d0.Velocimeter.Destination.autoSaveTimeout;
 
-            $('#acquiring-message').text(`loop count: ${Xf1d0.Velocimeter.Destination.loopCount}`);
+            /*$('#acquiring-message').text(`loop count: ${Xf1d0.Velocimeter.Destination.loopCount}`);*/
           }
         },
 
@@ -380,11 +380,11 @@
               setTimeout(Xf1d0.Velocimeter.Destination.autoSave,
                          Xf1d0.Velocimeter.Destination.TIME_THRESHOLD);
 
-            var message = $('#acquiring-message');
+            /*var message = $('#acquiring-message');
             message.text('within threshold; autosaving @ ' +
                          Xf1d0.Velocimeter.Util.elapsedTimeArray(new Date(new Date().valueOf() + Xf1d0.Velocimeter.Destination.TIME_THRESHOLD))
                          .slice(1,3).join(':'));
-            message.show();
+            message.show();*/
           }
         },
 
