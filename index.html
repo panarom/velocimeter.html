@@ -247,7 +247,7 @@
             Xf1d0.debug(`position: ${position != void 0}\tcoords: ${'coords' in position && position.coords != void 0}\t accuracy ${position != void 0 && 'coords' in position && position.coords.accuracy}`);
             var accuracy = position.coords.accuracy;
             Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.push(accuracy);
-            Xf1d0.debug(`accuracy (hopefully successfully pushed): ${accuracy}`);
+            Xf1d0.debug(`accuracy: ${accuracy} (pushed ${Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.length})`);
             $('#acquisition-accuracy').text(accuracy || 'undefined accuracy‽');
 
             if(Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.length > 5 &&
