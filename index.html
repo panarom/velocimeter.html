@@ -248,13 +248,13 @@
             var accuracy = position.coords.accuracy;
             Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.push(accuracy);
             Xf1d0.debug(`accuracy: ${accuracy} (pushed ${Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.length})`);
-            $('#acquisition-accuracy').text(accuracy || 'undefined accuracy‽');
+            document.getElementById('acquisition-accuracy').innerText = accuracy || 'undefined accuracy‽';
 
             if(Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.length > 5 &&
                Xf1d0.Velocimeter.Util.arrayThresholdCheck(Xf1d0.Velocimeter.Geolocator.Initializer.accuracyTrend.slice(-5), 100)) {
               Xf1d0.Velocimeter.Geolocator.Initializer.initializePosition(position);
 
-              $('#acquiring-message').hide();
+              document.getElementById('acquiring-message').style='display:none';
 
               navigator.geolocation.clearWatch(Xf1d0.Velocimeter.Geolocator.Initializer.watchId);
 
@@ -298,10 +298,12 @@
                 Xf1d0.Velocimeter.Constants.FUNCTIONS
                 .map(function(f) {try{return f.call(Xf1d0.Velocimeter.Constants.FUNCTIONS);}catch(e){document.getElementById("note_content").innerHTML += `<p>${e} ${e.message} ${JSON.stringify(e)}</p>`;}});
 
-            results =
-              Xf1d0.Velocimeter.Constants.FIELDS.map(function(e,i) { $('#' + e).text(results[i]); return [e, results[i]]; });
+            results = Xf1d0.Velocimeter.Constants.FIELDS.map((e,i) => {
+              document.getElementById(e).innerText = results[i] ;
+              return [e, results[i]];
+            });
 
-            $('#gps').val( JSON.stringify(Xf1d0.Velocimeter.Geolocator.positionHistory) );
+            //$('#gps').val( JSON.stringify(Xf1d0.Velocimeter.Geolocator.positionHistory) );
 
             var destination = Xf1d0.Velocimeter.Destination.getDestination();
             
