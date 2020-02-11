@@ -125,7 +125,7 @@
 
         function() {
           //(Xf1d0.Velocimeter.currentPosition.speed - Xf1d0.Velocimeter.previousPosition.speed) / …
-          return `${Xf1d0.Velocimeter.Util.positionDiff('speed') / Xf1d0.Velocimeter.Util.positionDiff('time')} m/s²`;
+          return `${1000 * Xf1d0.Velocimeter.Util.positionDiff('speed') / Xf1d0.Velocimeter.Util.positionDiff('timestamp')} m/s²`;
         },
 
         function() {
